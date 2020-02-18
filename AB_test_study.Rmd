@@ -1,5 +1,5 @@
 ---
-title: "Viagogo_Case_Study"
+title: "AB Test Case Study"
 author: "Krishna Rao"
 date: "12/15/2019"
 output: pdf_document
@@ -9,13 +9,13 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+~Please see the report for details about the dataset and prompt~
 ```{r, include=FALSE}
 #note, I created a csv from 'Spring 2018 - Product Case Data.xlsx
 dat <- read.csv('product_case_data.csv')
 ```
 
-Hello there, i'm testing R markdown 
-EDA
+#Exploratory Data Analysis 
 ```{r}
 colnames(dat)
 head(dat, 5)
@@ -26,14 +26,14 @@ head(dat, 5)
 str(dat)
 ```
 
-EDA plot 
-```{r, include=FALSE}
+#EDA plot 
+```{r}
 par(mfrow=c(1,2))
 hist(dat$Visitors_Variant, main = 'Distribution of Visitors_Variant', xlab= 'Visitors Number', ylab = 'Frequency', col = 'firebrick3')
 hist(dat$Visitors_Control, main = 'Distribution of Visitors_Control', xlab= 'Visitors Number', ylab = 'Frequency', col = 'firebrick3')
 ```
 
-function to calculate metrics 
+Function to calculate metrics 
 ```{r}
 metrics_calculator <- function(df, control_or_variant, conversion_or_bounce){
   
@@ -72,6 +72,7 @@ metrics_calculator <- function(df, control_or_variant, conversion_or_bounce){
 }
 ```
 
+#Overall Metrics
 ```{r}
 print(metrics_calculator(dat, 'control', 'conversion'))
 print(metrics_calculator(dat, 'variant', 'conversion'))
@@ -125,10 +126,13 @@ legend('topright',  legend=c("Control", "Variant"),
        col=c("black", "firebrick3"), lty=1, bty = "n")
 ```
 
+#Distributions of Daily Metrics
 ```{r}
-par(mfrow = c(1,2))
-hist(daily_df$daily_control_conversion, col = 'blue')
-hist(daily_df$daily_variant_conversion, col = 'blue')
+par(mfrow = c(2,2))
+hist(daily_df$daily_control_conversion, col = 'firebrick3', main = 'Control Conversion', ylab = 'freq', xlab = NULL)
+hist(daily_df$daily_variant_conversion, col = 'firebrick3', main = 'Variant Conversion', ylab = 'freq', xlab = NULL)
+hist(daily_df$daily_control_conversion, col = 'firebrick3', main = 'Control Bounce', ylab = 'freq', xlab = NULL)
+hist(daily_df$daily_variant_conversion, col = 'firebrick3', main = 'Variant Bounce', ylab = 'freq', xlab = NULL)
 #both normally distributed
 ```
 
@@ -157,26 +161,30 @@ return (t_stat)
 
 ```
 
+
 ```{r}
-conversion_stat = test_stat_finder(daily_df$daily_control_conversion, daily_df$daily_variant_conversion)
-bounce_stat = test_stat_finder(daily_df$daily_control_bounce, daily_df$daily_variant_bounce)
+conversion_stat = test_stat_function(daily_df$daily_control_conversion, daily_df$daily_variant_conversion)
+bounce_stat = test_stat_function(daily_df$daily_control_bounce, daily_df$daily_variant_bounce)
 
 print(conversion_stat)
 print(bounce_stat)
 ```
 
-Interpretation: 
+#Interpretation
 In this example, we are conducting two tests- one for the Bounce rate metric, and the other for the Conversion rate metric. A t-test was chosen because we are using rate data, and it appears to be gaussian distributed (rather than, say, total counts, which would be poisson). Our null hypotheses are that the mean Bounce rate and mean Conversion rate across both groups (variant vs control) are equal, ie. that their difference is not significantly different from zero: 
 
-Bounce: 
+#####Bounce: 
 control.mean = variant.mean
 
-Conversion: 
+#####Conversion: 
 control.mean = variant.mean 
 
 We test this by calculating a t-statistic for both samples (see function above). We are interested in the two-tailed t-test, since we are testing an equality/inequality condition. Therefore our comparison t value must be two-tailed. I chose a standard 5% confidence level, and the degrees of freedom are N1+N2-2, or 40. The t-value that meets these condition is 2.021. This is our comparison value, and our rejection region is all values outside the bounds (-2.021, 2.021). 
 The bounce t-statistic is found to be -1.164775. Since this is within the bounds, we do not have strong evidence to reject the null hypothesis that the bounce rate of the variant is the same as that of the control. Another way to say this is that in the case there is truly no difference, we have greater than a 5% chance of observing a t-statistic this extreme, which is not significant. 
-The conversion t-statistic is found to be 0.6458431. Again, this is not part of the rejection region, so there is not sufficient evidence to reject the null hypothesis that the means Conversion rate of teh control vs variant are the same. 
+The conversion t-statistic is found to be 0.6458431. Again, this is not part of the rejection region, so there is not sufficient evidence to reject the null hypothesis that the means Conversion rate of the control vs variant are the same. 
 
+#Summary
 In conclusion, there is no evidence to suggest that the variant home page is an improvement on the control. Based on the graphs, it actually appears that the variant performs worse, with a higher bounce and lower conversion- though this is not statistically detectable at the 5% level. 
+
+
 
