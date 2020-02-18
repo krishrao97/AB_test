@@ -1,0 +1,182 @@
+---
+title: "Viagogo_Case_Study"
+author: "Krishna Rao"
+date: "12/15/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+#note, I created a csv from 'Spring 2018 - Product Case Data.xlsx
+dat <- read.csv('product_case_data.csv')
+```
+
+Hello there, i'm testing R markdown 
+EDA
+```{r}
+colnames(dat)
+head(dat, 5)
+```
+
+
+```{r}
+str(dat)
+```
+
+EDA plot 
+```{r, include=FALSE}
+par(mfrow=c(1,2))
+hist(dat$Visitors_Variant, main = 'Distribution of Visitors_Variant', xlab= 'Visitors Number', ylab = 'Frequency', col = 'firebrick3')
+hist(dat$Visitors_Control, main = 'Distribution of Visitors_Control', xlab= 'Visitors Number', ylab = 'Frequency', col = 'firebrick3')
+```
+
+function to calculate metrics 
+```{r}
+metrics_calculator <- function(df, control_or_variant, conversion_or_bounce){
+  
+  #CONTROL conversion rate:
+  control_conversion_num <- df$Visitors_Control[which(df$Purchase == 1)]
+  control_conversion_denom <- df$Visitors_Control
+  control_conversion_rate <- sum(control_conversion_num)/sum(control_conversion_denom)
+  
+  #VARIANT converison rate: 
+  variant_conversion_num <-df$Visitors_Variant[which(df$Purchase == 1)]
+  variant_conversion_denom <- df$Visitors_Variant
+  variant_conversion_rate <- sum(variant_conversion_num)/sum(variant_conversion_denom)
+  
+  #CONTROL bounce rate: 
+  control_bounce_num <- df$Visitors_Control[which(df$Bounce == 1 & df$Land == 1)]
+  control_bounce_denom <-df$Visitors_Control[which(df$Land == 1)]
+  control_bounce_rate <- sum(control_bounce_num)/sum(control_bounce_denom)
+  
+  #VARIANT bounce rate: 
+  variant_bounce_num <- df$Visitors_Variant[which(df$Bounce == 1 & df$Land == 1)]
+  variant_bounce_denom <-df$Visitors_Variant[which(df$Land == 1)]
+  variant_bounce_rate <-sum(variant_bounce_num)/sum(variant_bounce_denom)
+  
+  if (control_or_variant == 'control' & (conversion_or_bounce == 'conversion')) {
+     return (control_conversion_rate) 
+  }
+  if (control_or_variant == 'variant' & (conversion_or_bounce == 'conversion')) {
+     return (variant_conversion_rate) 
+  }
+  if (control_or_variant == 'control' & (conversion_or_bounce == 'bounce')) {
+     return (control_bounce_rate) 
+  }
+  if (control_or_variant == 'variant' & (conversion_or_bounce == 'bounce')) {
+     return (variant_bounce_rate) 
+  }
+}
+```
+
+```{r}
+print(metrics_calculator(dat, 'control', 'conversion'))
+print(metrics_calculator(dat, 'variant', 'conversion'))
+print(metrics_calculator(dat, 'control', 'bounce'))
+print(metrics_calculator(dat, 'variant', 'bounce'))
+```
+
+getting daily values
+```{r}
+unique_dates_list <- unique(dat$Date)
+N = length(unique_dates_list)
+
+daily_control_conversion = rep(NA, N)
+daily_variant_conversion = rep(NA, N)
+daily_control_bounce = rep(NA, N)
+daily_variant_bounce = rep(NA, N)
+
+
+for (i in 1:N){
+  date = toString(unique_dates_list[i])
+  temp_df = dat[which(dat$Date == date), ]
+
+  daily_control_conversion[i] = metrics_calculator(temp_df, 'control', 'conversion')
+  daily_variant_conversion[i] = metrics_calculator(temp_df, 'variant', 'conversion')
+  daily_control_bounce[i] = metrics_calculator(temp_df, 'control', 'bounce')
+  daily_variant_bounce[i] = metrics_calculator(temp_df, 'variant', 'bounce')
+  
+}
+```
+
+df holding daily values 
+```{r}
+daily_df<- data.frame( 'dates' = unique_dates_list,
+                'daily_control_conversion' = daily_control_conversion, 
+               'daily_variant_conversion' = daily_variant_conversion, 
+               'daily_control_bounce' = daily_control_bounce, 
+               'daily_variant_bounce' = daily_variant_bounce)
+```
+
+
+```{r}
+par(mfrow = c(1, 2))
+plot.default(daily_df$dates, daily_df$daily_control_conversion, type = 'l', lwd = 2, col = 'black', main = 'Daily Conversion Rate', xlab = 'date', ylab = 'Conversion Rate')
+lines(daily_df$dates, daily_df$daily_variant_conversion, type = 'l', lwd = 2, col = 'firebrick3')
+legend('topright',  legend=c("Control", "Variant"),
+       col=c("black", "firebrick3"), lty=1, bty = "n")
+
+plot.default(daily_df$dates, daily_df$daily_variant_bounce, type = 'l', lwd = 2, col = 'firebrick3', main = 'Daily Bounce Rate', xlab = 'date', ylab = 'Bounce Rate')
+lines(daily_df$dates, daily_df$daily_control_bounce, type = 'l', lwd = 2, col = 'black')
+legend('topright',  legend=c("Control", "Variant"),
+       col=c("black", "firebrick3"), lty=1, bty = "n")
+```
+
+```{r}
+par(mfrow = c(1,2))
+hist(daily_df$daily_control_conversion, col = 'blue')
+hist(daily_df$daily_variant_conversion, col = 'blue')
+#both normally distributed
+```
+
+
+```{r}
+#Yes, I know there's an in-built function for t-tests, 
+#I just prefer to do it manually for interpretability
+
+#this is a t-statistic for 2-tailed, 5% alpha level, 40 degrees of freedom from a table
+t_compare = 2.021
+
+test_stat_function <-function(values1, values2){
+x1 = mean(values1)
+x2 = mean(values2)
+
+sd1 = sd(values1)
+sd2 = sd(values2)
+
+n1 = length(values1)
+n2 = length(values2)
+
+t_stat = (x1-x2)/sqrt(sd1^2/n1 + sd2^2/n2)
+
+return (t_stat)
+}
+
+```
+
+```{r}
+conversion_stat = test_stat_finder(daily_df$daily_control_conversion, daily_df$daily_variant_conversion)
+bounce_stat = test_stat_finder(daily_df$daily_control_bounce, daily_df$daily_variant_bounce)
+
+print(conversion_stat)
+print(bounce_stat)
+```
+
+Interpretation: 
+In this example, we are conducting two tests- one for the Bounce rate metric, and the other for the Conversion rate metric. A t-test was chosen because we are using rate data, and it appears to be gaussian distributed (rather than, say, total counts, which would be poisson). Our null hypotheses are that the mean Bounce rate and mean Conversion rate across both groups (variant vs control) are equal, ie. that their difference is not significantly different from zero: 
+
+Bounce: 
+control.mean = variant.mean
+
+Conversion: 
+control.mean = variant.mean 
+
+We test this by calculating a t-statistic for both samples (see function above). We are interested in the two-tailed t-test, since we are testing an equality/inequality condition. Therefore our comparison t value must be two-tailed. I chose a standard 5% confidence level, and the degrees of freedom are N1+N2-2, or 40. The t-value that meets these condition is 2.021. This is our comparison value, and our rejection region is all values outside the bounds (-2.021, 2.021). 
+The bounce t-statistic is found to be -1.164775. Since this is within the bounds, we do not have strong evidence to reject the null hypothesis that the bounce rate of the variant is the same as that of the control. Another way to say this is that in the case there is truly no difference, we have greater than a 5% chance of observing a t-statistic this extreme, which is not significant. 
+The conversion t-statistic is found to be 0.6458431. Again, this is not part of the rejection region, so there is not sufficient evidence to reject the null hypothesis that the means Conversion rate of teh control vs variant are the same. 
+
+In conclusion, there is no evidence to suggest that the variant home page is an improvement on the control. Based on the graphs, it actually appears that the variant performs worse, with a higher bounce and lower conversion- though this is not statistically detectable at the 5% level. 
+
